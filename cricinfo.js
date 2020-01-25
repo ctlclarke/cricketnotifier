@@ -1,8 +1,8 @@
 const https = require('https');
+let apiUrl = "";
 
-
-const getScorecardForPeriod = async (url, period) => {
-    return new Promise((resolve, reject) => { https.get(url + "&period=" + period, (resp) => {
+const getScorecardForPeriod = async (period) => {
+    return new Promise((resolve, reject) => { https.get(apiUrl + "&period=" + period, (resp) => {
         let data = '';
       
         // A chunk of data has been recieved.
@@ -25,8 +25,9 @@ const getScorecardForPeriod = async (url, period) => {
     });
 }
 
-const getNumberOfPages = async (url, period) => {
-    return new Promise((resolve, reject) => { https.get(url + "&period=" + period, (resp) => {
+const getNumberOfPages = async (period) => {
+    return new Promise((resolve, reject) => { https.get(apiUrl + "&period=" + period, (resp) => {
+
         let data = '';
       
         // A chunk of data has been recieved.
@@ -51,18 +52,18 @@ const getNumberOfPages = async (url, period) => {
 }
 
 
-const getInitial = async (url) => {
+const getInitial = async () => {
 
     var potentialPeriod = 4
 
-    var haveHadPeriodYet = await getScorecardForPeriod(url, potentialPeriod)
+    var haveHadPeriodYet = await getScorecardForPeriod(potentialPeriod)
     do {
         potentialPeriod -= 1
-        haveHadPeriodYet = await getScorecardForPeriod(url, potentialPeriod)
+        haveHadPeriodYet = await getScorecardForPeriod(potentialPeriod)
     } while (haveHadPeriodYet == false)
     var currentPeriod = potentialPeriod
     
-    var numberOfPages = await getNumberOfPages(url, currentPeriod)
+    var numberOfPages = await getNumberOfPages(currentPeriod)
 
     return { currentPeriod, numberOfPages }
     // return period and number of pages
@@ -70,14 +71,15 @@ const getInitial = async (url) => {
 
 
 
-const getRecentBall = async (url) => {
+const getRecentBall = async () => {
 
 
-    var i = await getInitial(url)
+    var i = await getInitial()
     var currentPeriod = i.currentPeriod
     var numberOfPages = i.numberOfPages
 
-    return new Promise((resolve, reject) => { https.get(url + "&page=" + numberOfPages + "&period=" + currentPeriod, (resp) => {
+    return new Promise((resolve, reject) => { https.get(apiUrl + "&page=" + numberOfPages + "&period=" + currentPeriod, (resp) => {
+
 
             data = '';
             resp.on('data', (chunk) => {
@@ -90,11 +92,12 @@ const getRecentBall = async (url) => {
                 var newestText = ""
                 var recentScore = ""
                 var overs = ""
+                var id = ""
     
                 items.forEach((item) => {
-                    if (item.id > maxId)
+                    if (item.sequence > maxId)
                     {
-                        maxId = item.id
+                        maxId = item.sequence
                         newestText = item.shortText
                         if (item.period % 2 == 1)
                         {
@@ -105,11 +108,13 @@ const getRecentBall = async (url) => {
                           recentScore = item.awayScore
                         }
                         overs = item.over.overs
+                        id = item.id
     
                     }
                 })
-                resolve({ overs, recentScore, newestText });
+                resolve({ overs, recentScore, newestText, id });
             });    
+
       
       }).on("error", (err) => {
         console.log("Error: " + err.message);
@@ -121,8 +126,33 @@ const getRecentBall = async (url) => {
 
 }
 
-getRecentBall("https://site.web.api.espn.com/apis/site/v2/sports/cricket/19430/playbyplay?contentorigin=espn&event=1185307&section=cricinfo")
+const setupUrl = (eventUrl) => {
+  const urlParts = eventUrl.split("/");
+  let series = null;
+  let event = null;
+  let seriesNext = false;
+  let eventNext = false;
+  urlParts.forEach(part => {
+    if(seriesNext) {
+      series = part;
+      seriesNext = false;
+    }
+    if(eventNext) {
+      event = part;
+      eventNext = false;
+    }
+    if(part === 'series') {
+      seriesNext = true;
+    }
+    if(part === 'game') {
+      eventNext = true;
+    }
+  });
+  if(event == null || series == null) {
+    throw 'Bad URL';
+  }
+  apiUrl = "https://site.web.api.espn.com/apis/site/v2/sports/cricket/" + series + "/playbyplay?contentorigin=espn&event=" + event + "&section=cricinfo";
+}
 
-
-
+exports.setupUrl = setupUrl;
 exports.getRecentBall = getRecentBall;
