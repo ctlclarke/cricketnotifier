@@ -31,5 +31,11 @@ async function demo() {
   }
 }
 
+var args = process.argv.slice(2);
+var url = args[0];
+if(url == undefined) {
+  throw "You must supply a url";
+}
+cricinfo.setupUrl(url);
 demo();
 setInterval(demo, 10000);
