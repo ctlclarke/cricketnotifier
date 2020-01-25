@@ -1,10 +1,8 @@
 const https = require('https');
 
 
-const getRecentBall = async () => {
-
-
-    return new Promise((resolve, reject) => { https.get("https://site.web.api.espn.com/apis/site/v2/sports/cricket/19430/playbyplay?contentorigin=espn&event=1185307&section=cricinfo&period=2", (resp) => {
+const getScorecardForPeriod = async (url, period) => {
+    return new Promise((resolve, reject) => { https.get(url + "&period=" + period, (resp) => {
         let data = '';
       
         // A chunk of data has been recieved.
@@ -14,10 +12,73 @@ const getRecentBall = async () => {
       
         // The whole response has been received. Print out the result.
         resp.on('end', () => {
-          var numberOfPages = JSON.parse(data).commentary.pageCount;
-          console.log(numberOfPages);
+          var d = JSON.parse(data).commentary;
+           resolve(d.items.length != 0);
+
+              
+        });
       
-          https.get("https://site.web.api.espn.com/apis/site/v2/sports/cricket/19430/playbyplay?contentorigin=espn&event=1185307&page=" + numberOfPages + "&section=cricinfo&period=2", (resp) => {
+      }).on("error", (err) => {
+        console.log("Error: " + err.message);
+        reject(err);
+      });
+    });
+}
+
+const getNumberOfPages = async (url, period) => {
+    return new Promise((resolve, reject) => { https.get(url + "&period=" + period, (resp) => {
+        let data = '';
+      
+        // A chunk of data has been recieved.
+        resp.on('data', (chunk) => {
+          data += chunk;
+        });
+      
+        // The whole response has been received. Print out the result.
+        resp.on('end', () => {
+            var d = JSON.parse(data).commentary;
+            var numberOfPages = d.pageCount;
+            resolve(numberOfPages);
+
+              
+        });
+      
+      }).on("error", (err) => {
+        console.log("Error: " + err.message);
+        reject(err);
+      });
+    });
+}
+
+
+const getInitial = async (url) => {
+
+    var potentialPeriod = 4
+
+    var haveHadPeriodYet = await getScorecardForPeriod(url, potentialPeriod)
+    do {
+        potentialPeriod -= 1
+        haveHadPeriodYet = await getScorecardForPeriod(url, potentialPeriod)
+    } while (haveHadPeriodYet == false)
+    var currentPeriod = potentialPeriod
+    
+    var numberOfPages = await getNumberOfPages(url, currentPeriod)
+
+    return { currentPeriod, numberOfPages }
+    // return period and number of pages
+}
+
+
+
+const getRecentBall = async (url) => {
+
+
+    var i = await getInitial(url)
+    var currentPeriod = i.currentPeriod
+    var numberOfPages = i.numberOfPages
+
+    return new Promise((resolve, reject) => { https.get(url + "&page=" + numberOfPages + "&period=" + currentPeriod, (resp) => {
+
             data = '';
             resp.on('data', (chunk) => {
                 data += chunk;
@@ -35,7 +96,6 @@ const getRecentBall = async () => {
                     {
                         maxId = item.id
                         newestText = item.shortText
-                        console.log(item.period + ' ' + item.homeScore + ' ' + item.awayScore);
                         if (item.period % 2 == 1)
                         {
                           recentScore = item.homeScore
@@ -49,9 +109,7 @@ const getRecentBall = async () => {
                     }
                 })
                 resolve({ overs, recentScore, newestText });
-            });
-          });      
-        });
+            });    
       
       }).on("error", (err) => {
         console.log("Error: " + err.message);
@@ -62,6 +120,8 @@ const getRecentBall = async () => {
 
 
 }
+
+getRecentBall("https://site.web.api.espn.com/apis/site/v2/sports/cricket/19430/playbyplay?contentorigin=espn&event=1185307&section=cricinfo")
 
 
 
