@@ -15,7 +15,6 @@ const getRecentBall = async () => {
         // The whole response has been received. Print out the result.
         resp.on('end', () => {
           var numberOfPages = JSON.parse(data).commentary.pageCount;
-          console.log(numberOfPages);
       
           https.get("https://site.web.api.espn.com/apis/site/v2/sports/cricket/19430/playbyplay?contentorigin=espn&event=1185307&page=" + numberOfPages + "&section=cricinfo&period=2", (resp) => {
             data = '';
@@ -29,13 +28,13 @@ const getRecentBall = async () => {
                 var newestText = ""
                 var recentScore = ""
                 var overs = ""
+                var id = ""
     
                 items.forEach((item) => {
-                    if (item.id > maxId)
+                    if (item.sequence > maxId)
                     {
-                        maxId = item.id
+                        maxId = item.sequence
                         newestText = item.shortText
-                        console.log(item.period + ' ' + item.homeScore + ' ' + item.awayScore);
                         if (item.period % 2 == 1)
                         {
                           recentScore = item.homeScore
@@ -45,10 +44,11 @@ const getRecentBall = async () => {
                           recentScore = item.awayScore
                         }
                         overs = item.over.overs
+                        id = item.id
     
                     }
                 })
-                resolve({ overs, recentScore, newestText });
+                resolve({ overs, recentScore, newestText, id });
             });
           });      
         });
