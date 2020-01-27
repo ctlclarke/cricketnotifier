@@ -93,11 +93,7 @@ const getRecentBall = async () => {
               if (item.sequence > maxId) {
                 maxId = item.sequence;
                 newestText = item.shortText;
-                if (item.period % 2 == 1) {
-                  recentScore = item.homeScore;
-                } else {
-                  recentScore = item.awayScore;
-                }
+                recentScore = item.innings.runs + "/" + item.innings.wickets;
                 overs = item.over.overs;
                 id = item.id;
               }
